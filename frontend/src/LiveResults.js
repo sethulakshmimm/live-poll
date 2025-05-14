@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 
 function getWsUrl() {
-  if (window.location.protocol === 'https:')
-    return 'wss://' + window.location.host;
-  return 'ws://' + window.location.host;
+  // Always connect to backend WebSocket on port 4000
+  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  return protocol + '://' + window.location.hostname + ':4000';
 }
 
 export default function LiveResults({ pollId }) {

@@ -1,5 +1,5 @@
 const { WebSocketServer } = require('ws');
-const { redisClient, CHANNEL_PREFIX } = require('./redis');
+const { redisClient, subscriberClient, CHANNEL_PREFIX } = require('./redis');
 
 function setupWebSocket(server) {
   const wss = new WebSocketServer({ server });
@@ -10,7 +10,7 @@ function setupWebSocket(server) {
         const { type, pollId } = JSON.parse(msg);
         if (type === 'subscribe' && pollId) {
           subscribedChannel = CHANNEL_PREFIX + pollId;
-          redisClient.subscribe(subscribedChannel);
+          subscriberClient.subscribe(subscribedChannel);
         }
       } catch (_) {}
     });
@@ -19,10 +19,10 @@ function setupWebSocket(server) {
         ws.send(message);
       }
     };
-    redisClient.on('message', handleMessage);
+    subscriberClient.on('message', handleMessage);
     ws.on('close', () => {
-      if (subscribedChannel) redisClient.unsubscribe(subscribedChannel);
-      redisClient.off('message', handleMessage);
+      if (subscribedChannel) subscriberClient.unsubscribe(subscribedChannel);
+      subscriberClient.off('message', handleMessage);
     });
   });
 }
