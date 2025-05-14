@@ -1,0 +1,31 @@
+services:
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+  backend:
+    build: ./backend
+    command: npm start
+    environment:
+      - PORT=4000
+      - REDIS_URL=redis://redis:6379
+      - SECRET_KEY=your-secret-key
+    ports:
+      - "4000:4000"
+    depends_on:
+      - redis
+    volumes:
+      - ./backend:/usr/src/app
+    working_dir: /usr/src/app
+  frontend:
+    build: ./frontend
+    command: npm start
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/usr/src/app
+    working_dir: /usr/src/app
