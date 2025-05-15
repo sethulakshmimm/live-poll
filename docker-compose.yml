@@ -1,8 +1,20 @@
 services:
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=polls
+      - POSTGRES_USER=polluser
+      - POSTGRES_PASSWORD=pollpass
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./backend/migrations:/docker-entrypoint-initdb.d
+
   redis:
     image: redis:7
     ports:
       - "6379:6379"
+
   backend:
     build: ./backend
     command: npm start
@@ -10,13 +22,16 @@ services:
       - PORT=4000
       - REDIS_URL=redis://redis:6379
       - SECRET_KEY=your-secret-key
+      - POSTGRES_URL=postgresql://polluser:pollpass@postgres:5432/polls
     ports:
       - "4000:4000"
     depends_on:
+      - postgres
       - redis
     volumes:
       - ./backend:/usr/src/app
     working_dir: /usr/src/app
+
   frontend:
     build: ./frontend
     command: npm start
@@ -26,6 +41,4 @@ services:
       - "3000:3000"
     depends_on:
       - backend
-    volumes:
-      - ./frontend:/usr/src/app
     working_dir: /usr/src/app

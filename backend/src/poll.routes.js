@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const pollController = require('./poll.controller');
 
-router.post('/', pollController.createPoll);
-router.post('/:id/vote', pollController.votePoll);
-router.get('/:id', pollController.getPoll);
+// No need for createPoll route
+router.post('/:pollId/vote', pollController.votePoll);
+router.get('/:pollId', pollController.getPoll);
 
 module.exports = router;

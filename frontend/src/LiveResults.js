@@ -6,23 +6,48 @@ function getWsUrl() {
   return protocol + '://' + window.location.hostname + ':4000';
 }
 
-export default function LiveResults({ pollId }) {
+export default function LiveResults() {
+  const pollId = 'age';
   const [poll, setPoll] = useState(null);
   const [selected, setSelected] = useState(null);
   const [voted, setVoted] = useState(false);
   useEffect(() => {
-    fetch(`/poll/${pollId}`)
-      .then(r => r.json())
-      .then(setPoll);
-    const ws = new window.WebSocket(getWsUrl());
+    let ws;
+    // Fetch initial poll data
+    const fetchPoll = () => {
+      fetch(`/poll/${pollId}`)
+        .then(r => r.json())
+        .then(setPoll)
+        .catch(err => {
+          setPoll(null);
+          window.pollFetchError = err;
+          console.error('Failed to fetch poll:', err);
+        });
+    };
+    fetchPoll();
+    // Subscribe to WebSocket for live updates
+    ws = new window.WebSocket(getWsUrl());
     ws.onopen = () => {
       ws.send(JSON.stringify({ type: 'subscribe', pollId }));
     };
-    ws.onmessage = (msg) => {
-      const data = JSON.parse(msg.data);
-      setPoll(prev => prev ? { ...prev, tally: data.tally } : prev);
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg && Array.isArray(msg.tally)) {
+          setPoll(prev => prev ? { ...prev, tally: msg.tally } : prev);
+        } else {
+          fetchPoll(); // fallback if unexpected message
+        }
+      } catch {
+        fetchPoll();
+      }
     };
-    return () => ws.close();
+    // Listen for custom event from Poll.js
+    window.addEventListener('poll-voted', fetchPoll);
+    return () => {
+      ws && ws.close();
+      window.removeEventListener('poll-voted', fetchPoll);
+    };
   }, [pollId]);
 
   const handleVote = async () => {
@@ -33,10 +58,19 @@ export default function LiveResults({ pollId }) {
       body: JSON.stringify({ userId: 'user-' + Math.random(), optionIdx: selected }),
     });
     setVoted(true);
+    // Refetch poll data after voting to ensure tally is up-to-date
+    fetch(`/poll/${pollId}`)
+      .then(r => r.json())
+      .then(setPoll);
   };
 
-  if (!poll) return <div>Loading...</div>;
-  const total = poll.tally.reduce((a, b) => a + b, 0);
+  // Always show debug output, even if poll is null
+  const debugPanel = (
+    <pre style={{background:'#f8f8f8',color:'#333',padding:8,borderRadius:4,overflowX:'auto'}}>{JSON.stringify(poll, null, 2)}</pre>
+  );
+  if (!poll) return <div>Loading poll...{debugPanel}</div>;
+  const total = poll && poll.tally ? poll.tally.reduce((a, b) => a + b, 0) : 0;
+
   return (
     <div>
       <h3>{poll.question}</h3>
@@ -55,13 +89,21 @@ export default function LiveResults({ pollId }) {
       ) : (
         <div>Thank you for voting!</div>
       )}
-      <div style={{ marginTop: 16 }}>
+      {/* Live Results always visible */}
+      <div style={{ marginTop: 24, borderTop: '1px solid #eee', paddingTop: 16 }}>
         <h4>Live Results</h4>
-        {poll.options.map((opt, i) => (
-          <div key={i}>
-            {opt}: {total ? Math.round((poll.tally[i] / total) * 100) : 0}%
-          </div>
-        ))}
+       {total === 0 ? (
+          <div style={{ color: '#888' }}>No votes yet.</div>
+        ) : (
+          <>
+            {poll.options.map((opt, i) => (
+              <div key={i}>
+                {opt}: {Math.round((poll.tally[i] / total) * 100)}% ({poll.tally[i]} votes)
+              </div>
+            ))}
+            <div style={{ marginTop: 8, fontWeight: 'bold' }}>Total votes: {total}</div>
+          </>
+        )}
       </div>
     </div>
   );
