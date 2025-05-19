@@ -1,4 +1,4 @@
-# Herogram Live Poll Application
+# Live Poll Application
 
 This project is a real-time polling application with a React frontend and a Node.js backend, using Docker for easy setup and deployment. It supports live poll results using WebSockets and Redis.
 
